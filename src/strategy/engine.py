@@ -22,6 +22,7 @@ from typing import Optional
 from src.broker.base import Leg, Order
 from src.config import Config
 from src.market_sim import MarketSimulator, make_occ_symbol, _fmt_day
+from src.market.protocol import MarketView
 
 
 @dataclass
@@ -42,7 +43,7 @@ def classify_iv_rank(iv_rank: float) -> str:
     return "normal_iv"
 
 
-def compute_signal(symbol: str, sim: MarketSimulator, config: Config) -> Signal:
+def compute_signal(symbol: str, sim: MarketView, config: Config) -> Signal:
     iv_rank = sim.iv_rank(symbol)
     price = sim.get_underlying(symbol)
     regime = classify_iv_rank(iv_rank)
@@ -61,7 +62,7 @@ def compute_signal(symbol: str, sim: MarketSimulator, config: Config) -> Signal:
                   regime=regime, bias=bias, score=score)
 
 
-def _expiry_day(sim: MarketSimulator, config: Config) -> tuple[int, str]:
+def _expiry_day(sim: MarketView, config: Config) -> tuple[int, str]:
     eday = sim.day + (config.min_dte + config.max_dte) // 2
     # round to a Friday-ish weekly (7-multiple)
     eday = sim.day + (((config.min_dte + config.max_dte) // 2) // 7) * 7
@@ -74,7 +75,7 @@ def _nearest_strike(spot: float, offset_pct: float) -> float:
     return round(spot * (1 + offset_pct) / step) * step
 
 
-def build_put_credit_spread(symbol: str, sim: MarketSimulator, config: Config,
+def build_put_credit_spread(symbol: str, sim: MarketView, config: Config,
                             wing: float = 0.04) -> Optional[Order]:
     spot = sim.get_underlying(symbol)
     eday, eyyyymmdd = _expiry_day(sim, config)
@@ -100,7 +101,7 @@ def build_put_credit_spread(symbol: str, sim: MarketSimulator, config: Config,
                  note=f"sell {sell_strike}P / buy {buy_strike}P net {net:.2f}")
 
 
-def build_call_credit_spread(symbol: str, sim: MarketSimulator, config: Config,
+def build_call_credit_spread(symbol: str, sim: MarketView, config: Config,
                              wing: float = 0.04) -> Optional[Order]:
     spot = sim.get_underlying(symbol)
     eday, eyyyymmdd = _expiry_day(sim, config)
@@ -124,7 +125,7 @@ def build_call_credit_spread(symbol: str, sim: MarketSimulator, config: Config,
                  note=f"sell {sell_strike}C / buy {buy_strike}C net {net:.2f}")
 
 
-def build_iron_condor(symbol: str, sim: MarketSimulator, config: Config,
+def build_iron_condor(symbol: str, sim: MarketView, config: Config,
                       wing: float = 0.05) -> Optional[Order]:
     spot = sim.get_underlying(symbol)
     eday, eyyyymmdd = _expiry_day(sim, config)
@@ -175,7 +176,7 @@ def wing_for_ivrank(iv_rank: float, base: float = 0.05, min_wing: float = 0.03,
     return round(min(max_wing, max(min_wing, wing)), 4)
 
 
-def generate_candidates(symbol: str, sim: MarketSimulator, config: Config,
+def generate_candidates(symbol: str, sim: MarketView, config: Config,
                         signals: dict[str, Signal] | None = None) -> list[Order]:
     """Produce ranked candidate orders for a symbol given its signal."""
     sig = signals.get(symbol) if signals else None

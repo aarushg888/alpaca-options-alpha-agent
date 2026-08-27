@@ -20,6 +20,7 @@ from src.broker.base import Account, BrokerBackend, Order, Position
 from src.config import Config
 from src.strategy.engine import compute_signal
 from src.market_sim import MarketSimulator
+from src.market.protocol import MarketView
 
 
 @dataclass
@@ -63,7 +64,7 @@ class RiskGates:
         order: Order,
         account: Account,
         open_positions: list[Position],
-        sim: Optional[MarketSimulator] = None,
+        sim: Optional[MarketView] = None,
         symbol_iv_rank: Optional[float] = None,
     ) -> RiskVerdict:
         reasons: list[str] = []

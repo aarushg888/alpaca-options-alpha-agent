@@ -27,6 +27,7 @@ from src.broker.alpaca_cli import AlpacaCliBroker
 from src.broker.simulated_broker import SimulatedBroker
 from src.config import Config
 from src.market_sim import MarketSimulator
+from src.market.live_market import LiveMarket
 from src.risk.gates import RiskGates
 
 logger = logging.getLogger("orchestrator")
@@ -44,30 +45,35 @@ class RunResult:
     log: list[str] = field(default_factory=list)
 
 
-def build_backend(config: Config, sim: Optional[MarketSimulator] = None):
+def build_backend(config: Config, market: Optional[object] = None):
+    """Return (broker, market_view).
+
+    market_view is whichever object provides the strategy interface
+    (MarketSimulator in backtest, LiveMarket against real Alpaca data live).
+    """
     if config.backend == "alpaca":
-        return AlpacaCliBroker(config), None
-    sim = sim or MarketSimulator(config)
-    return SimulatedBroker(config, sim), sim
+        return AlpacaCliBroker(config), (market or LiveMarket(config))
+    market = market or MarketSimulator(config)
+    return SimulatedBroker(config, market), market
 
 
 def run(config: Config, steps: Optional[int] = None,
-        sim: Optional[MarketSimulator] = None,
+        market: Optional[object] = None,
         exec_log: Optional[str] = None) -> RunResult:
     steps = steps if steps is not None else config.sim_steps
-    broker, sim = build_backend(config, sim)
+    broker, market = build_backend(config, market)
     risk = RiskGates(config)
     executor = Executor(broker, log_path=exec_log)
     peak = config.starting_balance
 
     result = RunResult(backend=config.backend)
-    if sim is None:
+    if market is None:
         # Live mode: steps loop bounded by wall-clock in run.py
         steps = steps or 1
 
     for step in range(steps):
-        if sim is not None:
-            sim.step()
+        if hasattr(market, "step"):
+            market.step()
         broker.step_market()
         acct = broker.get_account()
 
@@ -84,10 +90,11 @@ def run(config: Config, steps: Optional[int] = None,
             # Halts new entries; existing positions still monitored.
 
         # 5/6. Propose + execute (skip new entries if halted)
-        # (Live mode wires a real Alpaca market-data adapter in run.py; the
-        #  simulated path uses the local simulator for signals.)
-        if not halt and len(broker.get_positions()) < config.max_positions and sim is not None:
-            proposals = propose(broker, sim, config, risk)
+        # Live mode uses a real Alpaca market-data adapter (LiveMarket);
+        # the backtest uses the local simulator. Both expose the same
+        # interface the strategy engine needs.
+        if not halt and len(broker.get_positions()) < config.max_positions and market is not None:
+            proposals = propose(broker, market, config, risk)
             taken = 0
             for prop in proposals:
                 if taken >= (config.target_positions - len(broker.get_positions())):

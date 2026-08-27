@@ -13,6 +13,7 @@ from typing import Optional
 from src.broker.base import BrokerBackend, Order, Position
 from src.config import Config
 from src.market_sim import MarketSimulator
+from src.market.protocol import MarketView
 from src.risk.gates import RiskGates
 from src.strategy.engine import compute_signal, generate_candidates
 
@@ -25,7 +26,7 @@ class Proposal:
     rationale: str
 
 
-def propose(broker: BrokerBackend, sim: MarketSimulator, config: Config,
+def propose(broker: BrokerBackend, sim: MarketView, config: Config,
             risk: RiskGates) -> list[Proposal]:
     acct = broker.get_account()
     open_positions = broker.get_positions()

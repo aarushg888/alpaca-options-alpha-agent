@@ -121,6 +121,32 @@ alpaca order submit --order-class mleg --type market --time-in-force day \
 All commands are constructed in `src/broker/alpaca_cli.py` and unit-tested
 without credentials.
 
+### Live market data (real, no trading creds needed)
+
+`src/market/live_market.py` reads **real option chains + quotes** from the
+Alpaca CLI (public market data — works with only the API key id) and maps them
+into the same `MarketView` interface the simulator uses. So signal generation,
+strategy selection, and risk gating all run on **live prices** today; submitting
+orders only additionally needs the secret key. The agent tracks a per-symbol
+**trailing IV-rank window** persisted to `runs/iv_history.json` so volatility
+regime signals accumulate across the 7-day competition (and across cron ticks).
+
+To preview live signals without trading:
+
+```bash
+export ALPACA_API_KEY=PK...
+python - <<'PY'
+import sys; sys.path.insert(0,'.')
+from src.config import Config
+from src.market.live_market import LiveMarket
+from src.strategy.engine import compute_signal
+lm = LiveMarket(Config.from_env(), bin_path="alpaca")
+for _ in range(3): lm.step()
+print({u['symbol']: compute_signal(u['symbol'], lm, Config.from_env()).iv_rank
+       for u in Config.from_env().universe})
+PY
+```
+
 ---
 
 ## Testing & CI
