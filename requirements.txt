@@ -1,0 +1,17 @@
+# Core runtime dependencies.
+# Alpaca SDK is OPTIONAL: the agent runs against a built-in market simulator
+# when no Alpaca API key/secret is configured, so the project is runnable with
+# only the stdlib. Install alpaca-py to enable the live Alpaca Trading API path.
+#
+# Recommended: Python 3.10+
+
+# Only required for the live Alpaca Trading API backend (broker/alpaca_cli.py).
+# Install with: pip install alpaca-py
+# alpaca-py>=0.40.0
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+
+# Optional: nicer logging / scheduling (not strictly required)
+# schedule>=1.2

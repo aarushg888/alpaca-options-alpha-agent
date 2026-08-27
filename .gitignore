@@ -1,0 +1,32 @@
+# Secrets / credentials — NEVER commit
+.env
+.env.*
+*.yaml.local
+config.local.yaml
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / run artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+runs/
+data/
+*.json.bak
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
