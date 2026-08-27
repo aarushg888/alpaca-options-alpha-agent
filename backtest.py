@@ -8,7 +8,7 @@ import sys
 import statistics
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[0]
 sys.path.insert(0, str(ROOT))
 
 from src.config import Config  # noqa: E402

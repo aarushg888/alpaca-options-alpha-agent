@@ -1,34 +1,4 @@
-#!/usr/bin/env python3
-"""Generate the required one-page hackathon write-up (AI logic, risk gates,
-and Alpaca infrastructure implementation) plus a performance summary from the
-latest run. Output: WRITEUP.md (and writes results/summary.md).
-"""
-from __future__ import annotations
-
-import json
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[0]
-sys.path.insert(0, str(ROOT))
-
-from src.config import Config  # noqa: E402
-
-
-def generate(run_json_path: Path | None = None) -> str:
-    cfg = Config.from_env()
-    run_data = None
-    if run_json_path and run_json_path.exists():
-        try:
-            run_data = json.loads(run_json_path.read_text())
-        except Exception:
-            run_data = None
-
-    summary = (run_data or {}).get("summary", {}) if run_data else {}
-    backend = summary.get("backend", cfg.backend)
-
-    md = f"""# Alpaca Options Alpha Agent — Hackathon Write-Up
+# Alpaca Options Alpha Agent — Hackathon Write-Up
 
 **Event:** Alpaca × lablab.ai — AI Trading Agents Hackathon (Aug 28 – Sep 4, 2026)
 **Submission type:** Autonomous AI trading agent (Options Alpha)
@@ -71,13 +41,13 @@ All orders must clear **every** gate; otherwise the trade is rejected:
 | Gate | Rule |
 |------|------|
 | Defined risk | Only net-credit spreads; max loss = spread width − net credit (known at entry). |
-| IV-rank entry | Enter only when IV rank ≥ {cfg.iv_rank_min:.0f}. |
-| Per-position risk | Max loss ≤ {cfg.max_portfolio_risk_pct:.0%} of equity ⇒ caps position size. |
-| Capital ceiling | Net premium per position ≤ {cfg.max_single_position_pct:.0%} of equity. |
-| Aggregate risk | Total defined risk across book ≤ {cfg.max_total_risk_pct:.0%} of equity. |
-| Position count | At most {cfg.max_positions} concurrent positions; target {cfg.target_positions}. |
-| Drawdown halt | New entries freeze if total drawdown ≥ {cfg.max_total_drawdown_pct:.0%}. |
-| DTE window | Only {cfg.min_dte}–{cfg.max_dte} day expiries (income, not lottery). |
+| IV-rank entry | Enter only when IV rank ≥ 35. |
+| Per-position risk | Max loss ≤ 4% of equity ⇒ caps position size. |
+| Capital ceiling | Net premium per position ≤ 6% of equity. |
+| Aggregate risk | Total defined risk across book ≤ 20% of equity. |
+| Position count | At most 8 concurrent positions; target 5. |
+| Drawdown halt | New entries freeze if total drawdown ≥ 15%. |
+| DTE window | Only 21–60 day expiries (income, not lottery). |
 
 Every submission is logged with its risk rationale for full auditability.
 
@@ -97,33 +67,16 @@ Every submission is logged with its risk rationale for full auditability.
   simulator (for testing/backtests with zero dependencies) and flips to the live
   Alpaca CLI when credentials are present — `Config.backend` auto-detects.
 - **Autonomy.** `live_run.py` is intended to run on a cron (every
-  {cfg.decision_interval_minutes} min) for the full 7-day window, fully
+  15 min) for the full 7-day window, fully
   unattended.
 
 ## 4. Performance (from latest run)
 
-- Backend: **{backend}**
-- Final equity: **${summary.get('final_equity', 100000):,.2f}**
-- Total P&L: **${summary.get('total_pnl', 0):,.2f}** ({summary.get('return_pct', 0):.2f}%)
-- Trades placed: **{summary.get('n_trades', 0)}**
-- Max drawdown: **{summary.get('max_drawdown_pct', 0):.2f}%**
+- Backend: **simulated**
+- Final equity: **$107,942.12**
+- Total P&L: **$7,942.12** (7.94%)
+- Trades placed: **124**
+- Max drawdown: **2.68%**
 
-*Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}. Paper-trading
+*Generated 2026-08-27 00:16 UTC. Paper-trading
 results are hypothetical and not indicative of future performance.*
-"""
-    return md
-
-
-def main() -> int:
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
-    run_json = ROOT / "runs" / "last_run.json"
-    md = generate(run_json)
-    (out_dir / "WRITEUP.md").write_text(md)
-    (ROOT / "WRITEUP.md").write_text(md)
-    print(f"Wrote {out_dir / 'WRITEUP.md'} ({len(md)} bytes)")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
