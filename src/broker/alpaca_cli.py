@@ -29,6 +29,16 @@ def _leg_to_cli(leg: Leg) -> dict:
     return {"symbol": leg.symbol, "side": leg.side, "qty": leg.qty}
 
 
+def build_option_chain_command(bin_path: str, underlying: str,
+                                exp_gte: str, exp_lte: str) -> list[str]:
+    """Fetch the real option chain via the Alpaca CLI (public market data)."""
+    return [bin_path, "option", "contracts",
+            "--underlying-symbols", underlying,
+            "--expiration-date-gte", exp_gte,
+            "--expiration-date-lte", exp_lte,
+            "--limit", "10000"]
+
+
 def build_mleg_command(bin_path: str, order: Order) -> list[str]:
     """Construct the `alpaca order submit` CLI args for a multi-leg spread."""
     legs = [_leg_to_cli(lg) for lg in order.legs]
