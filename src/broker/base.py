@@ -33,6 +33,7 @@ class Order:
     legs: list[Leg]
     qty: int = 1
     time_in_force: str = "day"
+    limit_price: Optional[float] = None  # net spread price; None => market
     note: str = ""
 
     @property
@@ -111,3 +112,7 @@ class BrokerBackend(ABC):
 
     @abstractmethod
     def step_market(self) -> None: ...  # advance one bar (sim only; noop live)
+
+    def market_open(self) -> bool:
+        """Whether the trading session is open (live backends override)."""
+        return True

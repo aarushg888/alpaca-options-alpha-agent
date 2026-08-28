@@ -189,9 +189,12 @@ class LiveMarket:
             exp = c.get("expiration_date", "")
             try:
                 ed = date.fromisoformat(exp)
-                exp_day = (ed - today).days
+                # Express expiry in the same absolute-day convention as the
+                # simulator: sim.day + (calendar days from today). This keeps
+                # strategy expiry math identical across backtest and live.
+                exp_day = self.day + (ed - today).days
             except Exception:
-                exp_day = 30
+                exp_day = self.day + 30
             contracts.append(Contract(
                 symbol=c["symbol"], root=symbol, type=otype,
                 strike=float(c["strike_price"]),

@@ -24,6 +24,10 @@ class Executor:
     def submit(self, proposal: Proposal) -> SubmitResult:
         order = proposal.order
         order.qty = max(1, min(order.qty, proposal.gate_max_qty))
+        # Options: use a limit at the target net credit (we collect premium).
+        # Limit orders are required outside market hours and avoid slippage.
+        if order.limit_price is None and order.net_credit > 0:
+            order.limit_price = round(order.net_credit, 2)
         res = self.broker.submit_order(order)
         entry = {
             "ok": res.ok,

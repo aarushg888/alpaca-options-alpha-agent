@@ -37,6 +37,7 @@ class Config:
     alpaca_endpoint: str = "https://paper-api.alpaca.markets"
     alpaca_paper: bool = True
     alpaca_cli_bin: str = "alpaca"  # resolved via PATH / ~/go/bin
+    force_backend: Optional[str] = None  # explicit override: "alpaca" | "simulated"
 
     # --- Account / risk budget ---
     starting_balance: float = 100_000.0
@@ -74,8 +75,13 @@ class Config:
 
     @property
     def backend(self) -> str:
+        if self.force_backend in ("alpaca", "simulated"):
+            return self.force_backend
         if self.alpaca_api_key and self.alpaca_secret_key:
             return "alpaca"
+        # NOTE: live mode is opted into explicitly (live_run.py sets
+        # force_backend="alpaca") so backtests/tests stay deterministic and
+        # never accidentally hit the network via the CLI profile.
         return "simulated"
 
     @classmethod

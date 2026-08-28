@@ -33,11 +33,25 @@ def test_build_mleg_command_has_required_flags():
     assert cmd[0] == "alpaca"
     assert "order" in cmd and "submit" in cmd
     assert "--order-class" in cmd and "mleg" in cmd
-    # legs is valid JSON
+    # legs is valid JSON with ratio_qty as string
     idx = cmd.index("--legs") + 1
     legs = json.loads(cmd[idx])
     assert len(legs) == 4
-    assert all("symbol" in l and "side" in l for l in legs)
+    assert all("symbol" in l and "side" in l and l.get("ratio_qty") == "1" for l in legs)
+
+
+def test_build_mleg_command_limit_when_price_set():
+    o = _ic_order()
+    o.limit_price = 2.84
+    cmd = build_mleg_command("alpaca", o)
+    assert "--type" in cmd and "limit" in cmd
+    idx = cmd.index("--limit-price") + 1
+    assert cmd[idx] == "2.84"
+
+
+def test_build_mleg_command_market_when_no_price():
+    cmd = build_mleg_command("alpaca", _ic_order())
+    assert "--type" in cmd and "market" in cmd
 
 
 def test_build_close_command_targets_root():

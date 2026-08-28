@@ -91,20 +91,22 @@ Alpaca.
 The same code runs on real Alpaca paper trading the moment credentials exist:
 
 ```bash
-export ALPACA_API_KEY=PK...        # your paper API key ID
-export ALPACA_SECRET_KEY=...      # the secret key (never commit it)
-# ALPACA_PAPER_TRADE defaults to true — you stay in the paper environment.
+# 1) One-time: create the paper profile (keys stored at ~/.config/alpaca)
+alpaca profile login --api-key --paper --key PK... --secret ...
 
-# Run one tick against the live paper account:
+# 2) Run one tick against the live paper account (uses the profile; do NOT
+#    export ALPACA_API_KEY/SECRET -- the CLI prefers env vars and can misbehave):
 python live_run.py --once
 
-# Or schedule it for the full hackathon window (e.g. cron every 15 min):
+# 3) Schedule for the full hackathon window (cron every 15 min). The agent only
+#    submits new orders during market hours (only_when_open guard); monitoring
+#    of open positions runs every tick.
 python live_run.py --interval 15
 ```
 
-`Config.backend` auto-selects: **`alpaca`** when both keys are present,
-**`simulated`** otherwise — no code changes required. The agent refuses to run
-against a non-paper account as a safety guard.
+`live_run.py` sets `Config.force_backend = "alpaca"` so behavior is explicit
+(no accidental network calls from tests). The agent refuses to run against a
+non-paper account as a safety guard.
 
 ### Why the Alpaca CLI (not MCP)
 
@@ -114,8 +116,9 @@ the **official Alpaca CLI** (`github.com/alpacahq/cli`) because it is built for
 of an unattended 7-day hackathon agent. Orders are placed with:
 
 ```
-alpaca order submit --order-class mleg --type market --time-in-force day \
-  --legs '[{"symbol":"SPY250919P00580000","side":"sell","qty":1}, ...]'
+alpaca order submit --order-class mleg --type limit --time-in-force day \
+  --qty 1 --limit-price 2.84 \
+  --legs '[{"symbol":"SPY260930P00732000","side":"sell","ratio_qty":"1"}, ...]'
 ```
 
 All commands are constructed in `src/broker/alpaca_cli.py` and unit-tested
@@ -155,9 +158,10 @@ PY
 pytest -q --cov=src --cov-report=term-missing
 ```
 
-- **27 tests, 89% coverage** covering: Black-Scholes/Greeks, risk gates
-  (rejection paths), simulator/strategy, Alpaca CLI command construction (with a
-  stub runner — no network), and a full end-to-end deterministic run.
+- **36 tests** covering: Black-Scholes/Greeks, risk gates (rejection paths),
+  simulator/strategy, Alpaca CLI command construction (with a stub runner — no
+  network), **live market-data adapter hitting the real Alpaca CLI**, and full
+  end-to-end deterministic runs.
 - GitHub Actions runs the suite on Python 3.10/3.11/3.12 on every push/PR.
 
 ---

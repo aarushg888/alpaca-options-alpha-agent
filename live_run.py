@@ -38,9 +38,15 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     cfg = Config.from_env()
+    # Live mode authenticates via the Alpaca CLI *profile* (stored at
+    # ~/.config/alpaca). We opt in explicitly and deliberately do NOT export
+    # ALPACA_API_KEY/SECRET (the CLI prefers env vars when present and can
+    # misbehave); the profile is used instead.
+    cfg.force_backend = "alpaca"
     if cfg.backend != "alpaca":
-        print("ERROR: live mode requires ALPACA_API_KEY and ALPACA_SECRET_KEY "
-              "in the environment / .env.", file=sys.stderr)
+        print("ERROR: live mode requires an authenticated Alpaca CLI profile.\n"
+              "Run: alpaca profile login --api-key --paper --key PK... --secret ...",
+              file=sys.stderr)
         return 2
     if not cfg.alpaca_paper:
         print("SAFETY: refusing to run against a LIVE (non-paper) account.",
@@ -52,7 +58,7 @@ def main() -> int:
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 
     logging.info("Starting live paper agent (backend=alpaca, paper=%s)", cfg.alpaca_paper)
-    result = run(cfg, steps=steps)
+    result = run(cfg, steps=steps, only_when_open=True)
     summary = summarize(result)
     Path(args.out).write_text(__import__("json").dumps({
         "summary": summary, "trades": result.trades, "log": result.log

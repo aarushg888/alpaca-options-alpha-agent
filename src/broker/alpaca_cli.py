@@ -26,7 +26,7 @@ from src.broker.base import (
 
 
 def _leg_to_cli(leg: Leg) -> dict:
-    return {"symbol": leg.symbol, "side": leg.side, "qty": leg.qty}
+    return {"symbol": leg.symbol, "side": leg.side, "ratio_qty": str(leg.qty)}
 
 
 def build_option_chain_command(bin_path: str, underlying: str,
@@ -40,16 +40,24 @@ def build_option_chain_command(bin_path: str, underlying: str,
 
 
 def build_mleg_command(bin_path: str, order: Order) -> list[str]:
-    """Construct the `alpaca order submit` CLI args for a multi-leg spread."""
+    """Construct the `alpaca order submit` CLI args for a multi-leg spread.
+
+    Uses a limit order when `order.limit_price` is set (required for options
+    outside market hours, and safer generally). Falls back to market.
+    """
     legs = [_leg_to_cli(lg) for lg in order.legs]
     cmd = [
         bin_path, "order", "submit",
         "--order-class", "mleg",
-        "--type", "market",
         "--time-in-force", order.time_in_force,
+        "--qty", str(order.qty),
         "--legs", json.dumps(legs),
         "--client-order-id", f"{order.strategy}-{order.root}",
     ]
+    if order.limit_price is not None:
+        cmd += ["--type", "limit", "--limit-price", f"{order.limit_price:.2f}"]
+    else:
+        cmd += ["--type", "market"]
     return cmd
 
 
@@ -93,6 +101,14 @@ class AlpacaCliBroker(BrokerBackend):
             return json.loads(res.stdout)
         except json.JSONDecodeError:
             return {"raw": res.stdout.strip()}
+
+    def market_open(self) -> bool:
+        """True if the US equity options session is open right now."""
+        try:
+            out = self._run([self.bin, "clock"])
+            return bool(out.get("is_open", False))
+        except Exception:
+            return False
 
     # ---- BrokerBackend interface --------------------------------------
     def market_day(self) -> int:

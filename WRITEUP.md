@@ -78,5 +78,5 @@ Every submission is logged with its risk rationale for full auditability.
 - Trades placed: **124**
 - Max drawdown: **2.68%**
 
-*Generated 2026-08-27 00:24 UTC. Paper-trading
+*Generated 2026-08-28 00:55 UTC. Paper-trading
 results are hypothetical and not indicative of future performance.*

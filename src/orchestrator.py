@@ -59,7 +59,8 @@ def build_backend(config: Config, market: Optional[object] = None):
 
 def run(config: Config, steps: Optional[int] = None,
         market: Optional[object] = None,
-        exec_log: Optional[str] = None) -> RunResult:
+        exec_log: Optional[str] = None,
+        only_when_open: bool = False) -> RunResult:
     steps = steps if steps is not None else config.sim_steps
     broker, market = build_backend(config, market)
     risk = RiskGates(config)
@@ -89,11 +90,16 @@ def run(config: Config, steps: Optional[int] = None,
             result.log.append(f"step {step}: DRAWDOWN HALT {reason}")
             # Halts new entries; existing positions still monitored.
 
-        # 5/6. Propose + execute (skip new entries if halted)
-        # Live mode uses a real Alpaca market-data adapter (LiveMarket);
-        # the backtest uses the local simulator. Both expose the same
-        # interface the strategy engine needs.
-        if not halt and len(broker.get_positions()) < config.max_positions and market is not None:
+        # 5/6. Propose + execute (skip new entries if halted / market closed)
+        # Live mode uses a real Alpaca market-data adapter (LiveMarket); the
+        # backtest uses the local simulator. Both expose the same interface the
+        # strategy engine needs. With only_when_open, new entries are gated to
+        # market hours (monitoring of existing positions always runs).
+        market_closed = only_when_open and hasattr(broker, "market_open") \
+            and not broker.market_open()
+        if (not halt and not market_closed
+                and len(broker.get_positions()) < config.max_positions
+                and market is not None):
             proposals = propose(broker, market, config, risk)
             taken = 0
             for prop in proposals:
