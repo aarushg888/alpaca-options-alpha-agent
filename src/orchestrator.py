@@ -52,7 +52,13 @@ def build_backend(config: Config, market: Optional[object] = None):
     (MarketSimulator in backtest, LiveMarket against real Alpaca data live).
     """
     if config.backend == "alpaca":
-        return AlpacaCliBroker(config), (market or LiveMarket(config))
+        from src.broker.alpaca_cli import AlpacaCliBroker
+        broker = AlpacaCliBroker(config)
+        try:
+            broker.sync_positions()
+        except Exception:
+            pass
+        return broker, (market or LiveMarket(config))
     market = market or MarketSimulator(config)
     return SimulatedBroker(config, market), market
 

@@ -111,3 +111,49 @@ def test_alpaca_backend_with_stub_runner():
     res2 = b.close_position("alp_1", reason="test")
     assert res2.ok
     assert len(calls) >= 3
+
+
+def test_parse_occ_splits_symbol():
+    from src.broker.alpaca_cli import parse_occ
+    root, exp, cp, strike = parse_occ("SPY260930C00808000")
+    assert root == "SPY" and exp == "2026-09-30" and cp == "C" and strike == 808.0
+    root, exp, cp, strike = parse_occ("AMD261016P00420000")
+    assert root == "AMD" and exp == "2026-10-16" and cp == "P" and strike == 420.0
+
+
+def test_client_order_ids_unique_per_order():
+    from src.broker.alpaca_cli import build_mleg_command
+    a = build_mleg_command("alpaca", _ic_order())
+    b = build_mleg_command("alpaca", _ic_order())
+    assert a[a.index("--client-order-id") + 1] != b[b.index("--client-order-id") + 1]
+
+
+def test_sync_positions_rebuilds_spreads_from_live_book():
+    from src.config import Config
+    from src.broker.alpaca_cli import AlpacaCliBroker
+
+    cfg = Config.from_env()
+    book = [
+        {"symbol": "SPY260930C00808000", "qty": "-1", "avg_entry_price": "0.73",
+         "unrealized_pl": "50"},
+        {"symbol": "SPY260930C00839000", "qty": "1", "avg_entry_price": "0.09",
+         "unrealized_pl": "-6"},
+        {"symbol": "AMD261016P00440000", "qty": "-1", "avg_entry_price": "1.20",
+         "unrealized_pl": "-65"},
+        {"symbol": "AMD261016P00420000", "qty": "1", "avg_entry_price": "0.40",
+         "unrealized_pl": "-20"},
+    ]
+
+    def runner(cmd):
+        if "position" in cmd and "list" in cmd:
+            return book
+        return {}
+
+    b = AlpacaCliBroker(cfg, bin_path="alpaca", runner=runner,
+                        start_balance=100000.0)
+    assert b.sync_positions() == 2
+    poss = {p.root: p for p in b.get_positions()}
+    assert set(poss) == {"SPY", "AMD"}
+    assert abs(poss["SPY"].entry_credit - 0.64) < 1e-9
+    assert abs(poss["SPY"].unrealized_pnl - 44.0) < 1e-9
+    assert abs(poss["AMD"].entry_credit - 0.80) < 1e-9
